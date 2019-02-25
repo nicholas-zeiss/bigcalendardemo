@@ -16,62 +16,58 @@ class App extends Component {
       events: []
     }
 
-    this.handleNavigate = this._handleNavigate.bind(this);
-    this.handleRangeChange = this._handleRangeChange.bind(this);
     this.handleSelectEvent = this._handleSelectEvent.bind(this);
     this.handleSelectSlot = this._handleSelectSlot.bind(this);
   }
 
-  _handleNavigate(...args) {
-    // if (args[0].getTime() >= Date.now()) {
-      this.setState({ date: args[0] });
-    // }
-  }
-
-  _handleRangeChange(...args) {
-    // console.log(args);
-    // if (args[0][4] <)
-  }
-
   _handleSelectEvent(event) {
-    console.log(event)
     this.setState(state => ({
       events: state.events.filter(ev => ev !== event)
     }));
   }
 
   _handleSelectSlot({ start, end }) {
-    console.log(start, end,  start.getTime() === end.getTime())
-
-    if (start < new Date()) {
-      return;
-    } else if (start.getTime() === end.getTime()) {
+    if (start < new Date() || start.getTime() === end.getTime()) {
       return;
     }
-    
-    for (const event of this.state.events) {
-      if (event.start <= start && event.end >= start) {
-        return;
-      } else if (event.start <= end && event.start >= start) {
-        return;
+
+    this.setState(state => {
+      const mergedSlots = this.mergeSlots([
+        ...state.events.map(ev => ({ ...ev })),
+        { title: 'Available', start, end }
+      ]);
+
+      return { events: mergedSlots }
+    });
+  }
+
+  mergeSlots(slots) {
+    const merged = [];
+
+    slots.sort((a,b) => {
+      if (a.start >= b.start) {
+        return -1;
+      } else if (a.start < b.start) {
+        return 1;
+      } else {
+        return 0;
+      }
+    });
+
+    merged.push(slots.pop());
+
+    while (slots.length) {
+      const prev = merged[merged.length - 1];
+      const next = slots.pop();
+
+      if (next.start <= prev.end) {
+        prev.end = next.end >= prev.end ? next.end : prev.end;
+      } else {
+        merged.push(next);
       }
     }
 
-
-    this.setState(state => ({
-      events: [
-        ...state.events,
-        {
-          start,
-          end,
-          title: 'Available'
-        }
-      ]
-    }))
-  }
-
-  eventPropGetter() {
-
+    return [...merged.map(ev => ({ ...ev }))];
   }
 
   slotPropGetter(time) {
@@ -85,7 +81,9 @@ class App extends Component {
   render() {
     if (first) {
       first = false;
+
       setTimeout(() => this.forceUpdate(), 100);
+      
       return (
         <p>loading...</p>
       )
@@ -94,14 +92,11 @@ class App extends Component {
     return (
       <div className="App">
         <BigCalendar
-          date={ this.state.date }
           defaultView={BigCalendar.Views.WORK_WEEK}
           events={this.state.events}
           localizer={localizer}
           max={ new Date(1970, 1, 1, 20)}
           min={ new Date(1970, 1, 1, 8)}
-          onNavigate={this.handleNavigate}
-          onRangeChange={this.handleRangeChange}
           onSelectEvent={this.handleSelectEvent}
           onSelectSlot={this.handleSelectSlot}
           selectable={true}
